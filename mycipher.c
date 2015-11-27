@@ -9,7 +9,9 @@
 
 void syserr(char* msg) { perror(msg); exit(-1); }
 uint8_t fk(uint8_t ip, uint8_t key);
-uint8_t invip(uint8_t ip);
+uint8_t IP(uint8_t ip);
+uint8_t swap(uint8_t fkOut);
+uint8_t invip(uint8_t chain);
 
 //Assumptions: original_file blocks must all be 8
 int main(int argc, char* argv[])
@@ -18,7 +20,6 @@ int main(int argc, char* argv[])
   int i;
   FILE * fp, * wfp;
   uint8_t ip, ipinv, k1, k2, initvec;
-  uint16_t P10;
   char char0 = '0';
   char * ikey;
   char buffer;
@@ -34,8 +35,7 @@ int main(int argc, char* argv[])
     decrypt = 0;
   printf("decrypt is: %d\n", decrypt);  
   if(!decrypt){
-  	//Initial K1 creation
-  	P10 = 0;
+  	//Make k1
   	ikey = malloc(sizeof(char)*KEYSIZE);
   	sscanf(argv[1], "%s", ikey);
   	printf("The input before -char0 is: ");
@@ -163,10 +163,23 @@ int main(int argc, char* argv[])
   	}
   	printf("\n");
 		ipinv = invip(fksw); // Inverse IP function
+		printf("ipinv is: ");
+  	for(i=7; i>=0; i--){
+  		printf("%d", (ipinv >> i) & 0x01);
+  	}
+  	printf("\n");
+		int bytes_writ = fwrite(&buffer, 1, 1, wfp);
 				 		
-		while(bytes_read){
-			bytes_read = 0;
-			
+		while(1){
+			bytes_read = fread(&buffer, 1, 1, fp);
+			if(bytes_read == 0)
+				break;
+			ip = IP(buffer ^ ipinv); // CBC done here
+			fkOut = fk(ip, k1);
+			fksw = swap(fkOut);
+			fksw = fk(fksw, k2);
+			ipinv = invip(fksw);
+			bytes_writ = fwrite(&buffer, 1, 1, wfp);
 		}	
   }
   
@@ -230,6 +243,18 @@ uint8_t fk(uint8_t ip, uint8_t key){
 			 (tp4 & 0x02)      | (tp4 & 0x01) << 2 ; 
 	
 	return (p4 << 4) ^ ip;
+}
+uint8_t swap(uint8_t fkOut){
+	return (fkOut & 0x80) >> 4 | (fkOut & 0x40) >> 4 |
+				 (fkOut & 0x20) >> 4 | (fkOut & 0x10) >> 4 |
+				 (fkOut & 0x08) << 4 | (fkOut & 0x04) << 4 |
+				 (fkOut & 0x02) << 4 | (fkOut & 0x01) << 4 ;
+}
+uint8_t IP(uint8_t chain){
+	return 		(chain & 0x80) >> 3 | (chain & 0x40) << 1 |
+					  (chain & 0x20)      | (chain & 0x10) >> 1 |
+				 	  (chain & 0x08) >> 2 | (chain & 0x04) << 4 |
+				 		(chain & 0x02) >> 1 | (chain & 0x01) << 2 ;
 }
 uint8_t invip(uint8_t fksw){
 	return 		(fksw & 0x80) >> 1 | (fksw & 0x40) >> 4 |
