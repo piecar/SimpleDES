@@ -34,7 +34,6 @@ int main(int argc, char* argv[])
     decrypt = 1;
   else
     decrypt = 0;
-  printf("decrypt is: %d\n", decrypt);  
   if(!decrypt){
   	//Make k1
   	ikey = malloc(sizeof(char)*KEYSIZE);
@@ -69,13 +68,6 @@ int main(int argc, char* argv[])
   	
   	k1 =  (tkey[2] << 6) | (tkey[3] << 4) | (tkey[4] << 2) | (tkey[5]) << 7| 
   				(tkey[6] << 5) | (tkey[7] << 3) | (tkey[8])      | (tkey[9] << 1);
-  	
-  	printf("k1 is: ");
-  	for(i=7; i>=0; i--){
-  		printf("%d", (k1 >> i) & 0x01);
-  	}
-  	printf("\n");		
-  		
   	// Make k2
   	tkey[0] = ikey[1];
   	tkey[1] = ikey[6];
@@ -96,11 +88,6 @@ int main(int argc, char* argv[])
   	fseek(fp, SEEK_SET, 0);
   	fseek(wfp, SEEK_SET, 0);
 		int bytes_read = fread(&buffer, 1, 1, fp);
-		printf("From file: ");
-  	for(i=7; i>=0; i--){
-  		printf("%d", (buffer >> i) & 0x01);
-  	}
-  	printf("\n");
   	
   	//Set up Initialization Vector
   	char * ivec;
@@ -131,6 +118,7 @@ int main(int argc, char* argv[])
 		fksw = fk(fksw, k2); // Do the fk process again with k2
 		ipinv = invip(fksw); // Inverse IP function
 		int bytes_writ = fwrite(&ipinv, 1, 1, wfp);
+		if(bytes_writ < 0) syserr("Could not writ to file");
 				 		
 		while(1){
 			bytes_read = fread(&buffer, 1, 1, fp);
@@ -146,6 +134,7 @@ int main(int argc, char* argv[])
 			fksw = fk(fksw, k2);
 			ipinv = invip(fksw);
 			bytes_writ = fwrite(&ipinv, 1, 1, wfp);
+			if(bytes_writ < 0) syserr("Could not writ to file");
 		}	
   }
   else{							//DECRYPT
@@ -182,13 +171,7 @@ int main(int argc, char* argv[])
   	
   	k1 =  (tkey[2] << 6) | (tkey[3] << 4) | (tkey[4] << 2) | (tkey[5]) << 7| 
   				(tkey[6] << 5) | (tkey[7] << 3) | (tkey[8])      | (tkey[9] << 1);
-  	
-  	printf("k1 is: ");
-  	for(i=7; i>=0; i--){
-  		printf("%d", (k1 >> i) & 0x01);
-  	}
-  	printf("\n");		
-  		
+  	  		
   	// Make k2
   	tkey[0] = ikey[1];
   	tkey[1] = ikey[6];
@@ -239,6 +222,7 @@ int main(int argc, char* argv[])
 		ipinv = invip(fksw); // Inverse IP function
   	ipinv = ipinv ^ initvec;
 		int bytes_writ = fwrite(&ipinv, 1, 1, wfp);
+		if(bytes_writ < 0) syserr("Could not writ to file");
 		initvec = cbcDec;
 				 		
 		while(1){
@@ -255,6 +239,7 @@ int main(int argc, char* argv[])
 			ipinv = invip(fksw);
 			ipinv = initvec ^ ipinv;
 			bytes_writ = fwrite(&ipinv, 1, 1, wfp);
+			if(bytes_writ < 0) syserr("Could not writ to file");
 			initvec = buffer;
 		}	
   }
@@ -264,7 +249,6 @@ int main(int argc, char* argv[])
 
 uint8_t fk(uint8_t ip, uint8_t key){
 	uint8_t ep, epxk1, row, col, tp4, p4;
-	int i;
 	uint8_t s0[4][4] = {
   	{1, 0, 3, 2},
   	{3, 2, 1, 0},
